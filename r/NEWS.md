@@ -13,6 +13,7 @@
 ## Improvements
 - Speed up iterating fragments after `select_cells()`, which now adds about a third of its previous per-fragment cost when selecting by cell name and half when selecting by index.
 - Reduce the per-fragment cost of `subset_lengths()` and `select_regions()` by about a third and a half, respectively.
+- Speed up `nucleosome_counts()`, and so `qc_scATAC()`, by counting directly from batches of loaded fragments (1.6x faster on an 805M-fragment sample).
 
 ## Bug-fixes
 - Fix error in documentation examples for `plot_embedding()`, resulting from the way documentation examples use nested function calls (pull request #316).

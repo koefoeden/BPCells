@@ -170,39 +170,37 @@ List subset_tiles_cpp(
 // Compute number of fragments like ArchR does for cell stats
 //  [[Rcpp::export]]
 List nucleosome_counts_cpp(SEXP fragments, uint32_t nuc_width = 147) {
-    FragmentIterator iter(take_unique_xptr<FragmentLoader>(fragments));
+    std::unique_ptr<FragmentLoader> loader = take_unique_xptr<FragmentLoader>(fragments);
 
-    std::vector<int> subNuc(0);
-    std::vector<int> monoNuc(0);
-    std::vector<int> multiNuc(0);
-
-    if (iter.cellCount() != -1) {
-        subNuc.resize(iter.cellCount(), 0);
-        monoNuc.resize(iter.cellCount(), 0);
-        multiNuc.resize(iter.cellCount(), 0);
+    // Fragment counts per cell: sub-, mono-, and multi-nucleosomal
+    std::vector<int> counts[3];
+    if (loader->cellCount() != -1) {
+        for (auto &c : counts) c.resize(loader->cellCount(), 0);
     }
 
     uint32_t count = 0;
-    while (iter.nextChr()) {
-        while (iter.nextFrag()) {
-            if (count++ % (1 << 14) == 0) Rcpp::checkUserInterrupt();
-            uint32_t cell = iter.cell();
-            if (cell >= subNuc.size()) {
-                subNuc.resize(cell + 1, 0);
-                monoNuc.resize(cell + 1, 0);
-                multiNuc.resize(cell + 1, 0);
+    while (loader->nextChr()) {
+        while (loader->load()) {
+            if (count++ % 16 == 0) Rcpp::checkUserInterrupt();
+            uint32_t capacity = loader->capacity();
+            const uint32_t *cell = loader->cellData();
+            const uint32_t *start = loader->startData();
+            const uint32_t *end = loader->endData();
+            for (uint32_t i = 0; i < capacity; i++) {
+                if (cell[i] >= counts[0].size()) {
+                    for (auto &c : counts) c.resize(cell[i] + 1, 0);
+                }
+                // Same as min(length / nuc_width, 2), without a division or branch
+                uint32_t length = end[i] - start[i];
+                counts[(length >= nuc_width) + (length / 2 >= nuc_width)][cell[i]]++;
             }
-            uint32_t size = (iter.end() - iter.start()) / nuc_width;
-            if (size == 0) subNuc[cell]++;
-            else if (size == 1) monoNuc[cell]++;
-            else multiNuc[cell]++;
         }
     }
 
     return List::create(
-        Named("subNucleosomal") = subNuc,
-        Named("monoNucleosomal") = monoNuc,
-        Named("multiNucleosomal") = multiNuc
+        Named("subNucleosomal") = counts[0],
+        Named("monoNucleosomal") = counts[1],
+        Named("multiNucleosomal") = counts[2]
     );
 }
 
