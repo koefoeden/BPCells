@@ -4,7 +4,7 @@
 \alias{marker_features}
 \title{Test for marker features}
 \usage{
-marker_features(mat, groups, method = "wilcoxon")
+marker_features(mat, groups, method = "wilcoxon", threads = 0L)
 }
 \arguments{
 \item{mat}{IterableMatrix object of dimensions features x cells}
@@ -15,6 +15,8 @@ marker_features(mat, groups, method = "wilcoxon")
 \itemize{
 \item \code{wilcoxon}: Wilconxon rank-sum test a.k.a Mann-Whitney U test
 }}
+
+\item{threads}{Number of threads to use, each testing a chunk of consecutive features}
 }
 \value{
 tibble with the following columns:

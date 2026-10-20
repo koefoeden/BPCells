@@ -471,29 +471,49 @@ List matrix_stats_cpp(SEXP matrix, int row_stats, int col_stats) {
     return List::create(Named("row_stats") = res.row_stats, Named("col_stats") = res.col_stats);
 }
 
-// [[Rcpp::export]]
-Eigen::MatrixXd wilcoxon_rank_sum_pval_uint32_t_cpp(SEXP matrix, std::vector<uint32_t> groups) {
-    return run_with_R_interrupt_check(
-        &wilcoxon_rank_sum<uint32_t>,
-        take_unique_xptr<MatrixLoader<uint32_t>>(matrix),
-        std::cref(groups)
+// Run the Wilcoxon rank-sum test on a list of matrices holding consecutive column chunks,
+// using up to `threads` threads, and concatenate the p-values
+template <typename T>
+Eigen::MatrixXd wilcoxon_rank_sum_pval_chunks(List matrices, const std::vector<uint32_t> &groups, int threads) {
+    std::vector<std::unique_ptr<MatrixLoader<T>>> chunks;
+    for (R_xlen_t i = 0; i < matrices.size(); i++) {
+        SEXP matrix = matrices[i];
+        chunks.push_back(take_unique_xptr<MatrixLoader<T>>(matrix));
+    }
+    std::vector<Eigen::MatrixXd> pvals(chunks.size());
+    run_parallel_with_R_interrupt_check(
+        [&](size_t start, size_t end, std::atomic<bool> *interrupt) {
+            for (size_t i = start; i < end; i++) {
+                pvals[i] = wilcoxon_rank_sum<T>(std::move(chunks[i]), groups, interrupt);
+            }
+        },
+        chunks.size(),
+        threads
     );
+    Eigen::Index cols = 0;
+    for (const auto &p : pvals) cols += p.cols();
+    Eigen::MatrixXd res(pvals.front().rows(), cols);
+    cols = 0;
+    for (const auto &p : pvals) {
+        res.middleCols(cols, p.cols()) = p;
+        cols += p.cols();
+    }
+    return res;
 }
 
 // [[Rcpp::export]]
-Eigen::MatrixXd wilcoxon_rank_sum_pval_float_cpp(SEXP matrix, std::vector<uint32_t> groups) {
-    return run_with_R_interrupt_check(
-        &wilcoxon_rank_sum<float>, take_unique_xptr<MatrixLoader<float>>(matrix), std::cref(groups)
-    );
+Eigen::MatrixXd wilcoxon_rank_sum_pval_uint32_t_cpp(List matrices, std::vector<uint32_t> groups, int threads) {
+    return wilcoxon_rank_sum_pval_chunks<uint32_t>(matrices, groups, threads);
 }
 
 // [[Rcpp::export]]
-Eigen::MatrixXd wilcoxon_rank_sum_pval_double_cpp(SEXP matrix, std::vector<uint32_t> groups) {
-    return run_with_R_interrupt_check(
-        &wilcoxon_rank_sum<double>,
-        take_unique_xptr<MatrixLoader<double>>(matrix),
-        std::cref(groups)
-    );
+Eigen::MatrixXd wilcoxon_rank_sum_pval_float_cpp(List matrices, std::vector<uint32_t> groups, int threads) {
+    return wilcoxon_rank_sum_pval_chunks<float>(matrices, groups, threads);
+}
+
+// [[Rcpp::export]]
+Eigen::MatrixXd wilcoxon_rank_sum_pval_double_cpp(List matrices, std::vector<uint32_t> groups, int threads) {
+    return wilcoxon_rank_sum_pval_chunks<double>(matrices, groups, threads);
 }
 
 // [[Rcpp::export]]

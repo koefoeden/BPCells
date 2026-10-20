@@ -23,6 +23,7 @@
 #' @param groups Character/factor vector of cell groups/clusters. Length #cells
 #' @param method Test method to use. Current options are:  
 #'   - `wilcoxon`: Wilconxon rank-sum test a.k.a Mann-Whitney U test
+#' @param threads Number of threads to use, each testing a chunk of consecutive features
 #' @return tibble with the following columns:  
 #'  - **foreground**: Group ID used for the foreground
 #'  - **background**: Group ID used for the background (or NA if comparing to rest of cells)
@@ -41,9 +42,10 @@
 #' ## get only differential genes given a threshold value
 #' marker_feats %>% dplyr::filter(p_val_raw < 0.05)
 #' @export
-marker_features <- function(mat, groups, method="wilcoxon") {
+marker_features <- function(mat, groups, method="wilcoxon", threads=0L) {
     assert_is(mat, "IterableMatrix")
     assert_true(length(groups) == ncol(mat))
+    assert_is_wholenumber(threads)
     method <- match.arg(method)
     groups <- as.factor(groups)
 
@@ -57,8 +59,11 @@ marker_features <- function(mat, groups, method="wilcoxon") {
         mat <- transpose_storage_order(mat, outdir=outdir)
     }
 
+    chunk_count <- max(1, min(threads, nrow(mat)))
+    features <- seq_len(nrow(mat))
+    chunks <- split(features, factor(ceiling(features * chunk_count / nrow(mat)), seq_len(chunk_count)))
     test_fn <- get(sprintf("wilcoxon_rank_sum_pval_%s_cpp", matrix_type(mat)))
-    p_vals <- test_fn(iterate_matrix(mat), as.integer(groups) - 1)
+    p_vals <- test_fn(lapply(chunks, function(x) iterate_matrix(mat[x, ])), as.integer(groups) - 1, threads)
 
     group_sums <- t(pseudobulk_matrix(mat, groups, method = "sum")) # dim groups x features
     foreground_means <- multiply_rows(group_sums, 1 / as.numeric(table(groups)))

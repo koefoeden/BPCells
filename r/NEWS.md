@@ -9,6 +9,7 @@
 - Export `write_insertion_bed()`, which originally was only a helper for peak calling (pull request #302).
 - Add support for reading 64 bit Anndata matrices, as well as reading signed integer matrices.  Note, signed integers are converted to float/double matrices when read in. (pull request #330)
 - Add `sample_bernoulli()`, a lazy `IterableMatrix` transform that keeps each non-zero entry independently with probability `prob` using a reproducible, stateless hash of `(seed, row, col)`. Transform is invariant to storage order (`transpose_storage_order()`).
+- Add a `threads` argument to `marker_features()` to run the Wilcoxon test on chunks of features in parallel.
 
 ## Improvements
 - `marker_features()` computes group means with `pseudobulk_matrix()` rather than a sparse matrix multiply, roughly halving its run time.

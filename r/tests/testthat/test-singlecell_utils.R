@@ -49,6 +49,19 @@ test_that("Wilcoxon rank sum works (small)", {
     expect_equal(res_bp_1$feature, "centered")
 })
 
+test_that("Wilcoxon rank sum is identical with threads", {
+    set.seed(12345)
+    m <- matrix(rpois(200 * 30, lambda = 1), nrow = 200, dimnames = list(NULL, paste0("feature", 1:30))) %>%
+        as("dgCMatrix") %>%
+        as("IterableMatrix") %>%
+        t()
+    groups <- rep(c("A", "B", "C", "D"), 50)
+    res <- marker_features(m, groups)
+    for (threads in c(2, 7, 50)) {
+        expect_identical(marker_features(m, groups, threads = threads), res)
+    }
+})
+
 test_that("Wilcoxon rank sum matches immunogenomics::presto", {
     skip_if_not_installed("pbmc3k.SeuratData")
     skip_if_not_installed("Seurat")

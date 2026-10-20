@@ -2494,38 +2494,41 @@ BEGIN_RCPP
 END_RCPP
 }
 // wilcoxon_rank_sum_pval_uint32_t_cpp
-Eigen::MatrixXd wilcoxon_rank_sum_pval_uint32_t_cpp(SEXP matrix, std::vector<uint32_t> groups);
-RcppExport SEXP _BPCells_wilcoxon_rank_sum_pval_uint32_t_cpp(SEXP matrixSEXP, SEXP groupsSEXP) {
+Eigen::MatrixXd wilcoxon_rank_sum_pval_uint32_t_cpp(List matrices, std::vector<uint32_t> groups, int threads);
+RcppExport SEXP _BPCells_wilcoxon_rank_sum_pval_uint32_t_cpp(SEXP matricesSEXP, SEXP groupsSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type matrix(matrixSEXP);
+    Rcpp::traits::input_parameter< List >::type matrices(matricesSEXP);
     Rcpp::traits::input_parameter< std::vector<uint32_t> >::type groups(groupsSEXP);
-    rcpp_result_gen = Rcpp::wrap(wilcoxon_rank_sum_pval_uint32_t_cpp(matrix, groups));
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(wilcoxon_rank_sum_pval_uint32_t_cpp(matrices, groups, threads));
     return rcpp_result_gen;
 END_RCPP
 }
 // wilcoxon_rank_sum_pval_float_cpp
-Eigen::MatrixXd wilcoxon_rank_sum_pval_float_cpp(SEXP matrix, std::vector<uint32_t> groups);
-RcppExport SEXP _BPCells_wilcoxon_rank_sum_pval_float_cpp(SEXP matrixSEXP, SEXP groupsSEXP) {
+Eigen::MatrixXd wilcoxon_rank_sum_pval_float_cpp(List matrices, std::vector<uint32_t> groups, int threads);
+RcppExport SEXP _BPCells_wilcoxon_rank_sum_pval_float_cpp(SEXP matricesSEXP, SEXP groupsSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type matrix(matrixSEXP);
+    Rcpp::traits::input_parameter< List >::type matrices(matricesSEXP);
     Rcpp::traits::input_parameter< std::vector<uint32_t> >::type groups(groupsSEXP);
-    rcpp_result_gen = Rcpp::wrap(wilcoxon_rank_sum_pval_float_cpp(matrix, groups));
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(wilcoxon_rank_sum_pval_float_cpp(matrices, groups, threads));
     return rcpp_result_gen;
 END_RCPP
 }
 // wilcoxon_rank_sum_pval_double_cpp
-Eigen::MatrixXd wilcoxon_rank_sum_pval_double_cpp(SEXP matrix, std::vector<uint32_t> groups);
-RcppExport SEXP _BPCells_wilcoxon_rank_sum_pval_double_cpp(SEXP matrixSEXP, SEXP groupsSEXP) {
+Eigen::MatrixXd wilcoxon_rank_sum_pval_double_cpp(List matrices, std::vector<uint32_t> groups, int threads);
+RcppExport SEXP _BPCells_wilcoxon_rank_sum_pval_double_cpp(SEXP matricesSEXP, SEXP groupsSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type matrix(matrixSEXP);
+    Rcpp::traits::input_parameter< List >::type matrices(matricesSEXP);
     Rcpp::traits::input_parameter< std::vector<uint32_t> >::type groups(groupsSEXP);
-    rcpp_result_gen = Rcpp::wrap(wilcoxon_rank_sum_pval_double_cpp(matrix, groups));
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(wilcoxon_rank_sum_pval_double_cpp(matrices, groups, threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2833,9 +2836,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BPCells_row_sums_double_cpp", (DL_FUNC) &_BPCells_row_sums_double_cpp, 1},
     {"_BPCells_col_sums_double_cpp", (DL_FUNC) &_BPCells_col_sums_double_cpp, 1},
     {"_BPCells_matrix_stats_cpp", (DL_FUNC) &_BPCells_matrix_stats_cpp, 3},
-    {"_BPCells_wilcoxon_rank_sum_pval_uint32_t_cpp", (DL_FUNC) &_BPCells_wilcoxon_rank_sum_pval_uint32_t_cpp, 2},
-    {"_BPCells_wilcoxon_rank_sum_pval_float_cpp", (DL_FUNC) &_BPCells_wilcoxon_rank_sum_pval_float_cpp, 2},
-    {"_BPCells_wilcoxon_rank_sum_pval_double_cpp", (DL_FUNC) &_BPCells_wilcoxon_rank_sum_pval_double_cpp, 2},
+    {"_BPCells_wilcoxon_rank_sum_pval_uint32_t_cpp", (DL_FUNC) &_BPCells_wilcoxon_rank_sum_pval_uint32_t_cpp, 3},
+    {"_BPCells_wilcoxon_rank_sum_pval_float_cpp", (DL_FUNC) &_BPCells_wilcoxon_rank_sum_pval_float_cpp, 3},
+    {"_BPCells_wilcoxon_rank_sum_pval_double_cpp", (DL_FUNC) &_BPCells_wilcoxon_rank_sum_pval_double_cpp, 3},
     {"_BPCells_svds_cpp", (DL_FUNC) &_BPCells_svds_cpp, 6},
     {"_BPCells_matrix_value_histogram_cpp", (DL_FUNC) &_BPCells_matrix_value_histogram_cpp, 2},
     {"_BPCells_checksum_double_cpp", (DL_FUNC) &_BPCells_checksum_double_cpp, 1},
