@@ -10,10 +10,14 @@
 - Add support for reading 64 bit Anndata matrices, as well as reading signed integer matrices.  Note, signed integers are converted to float/double matrices when read in. (pull request #330)
 - Add `sample_bernoulli()`, a lazy `IterableMatrix` transform that keeps each non-zero entry independently with probability `prob` using a reproducible, stateless hash of `(seed, row, col)`. Transform is invariant to storage order (`transpose_storage_order()`).
 
+## Improvements
+- Speed up `gene_score_weights_archr()` and `gene_score_archr()` by finding blacklisted tiles with a direct overlap search instead of a peak matrix over millions of tiles. Weights for 32k human genes now take about 4 s instead of 11 s.
+
 ## Bug-fixes
 - Fix error in documentation examples for `plot_embedding()`, resulting from the way documentation examples use nested function calls (pull request #316).
 - Fix error in `qc_scATAC()` when fragments are near the start of a chromosome (pull request #320).
 - Fix errors in `gene_score_weights_archr()` and `gene_score_archr()` when the last genes have all of their tiles blacklisted, or when the blacklist overlaps no tiles (including an empty blacklist). The weight matrix now always has one row per gene.
+- Fix `gene_score_weights_archr()` and `gene_score_archr()` removing tiles near blacklist regions on other chromosomes, or erroring, when `blacklist` has chromosomes that `genes` lacks.
 
 ## To-dos
 - Add support for sparse pseudobulking in `pseudobulk_matrix()`.  Currently in progress in #268.

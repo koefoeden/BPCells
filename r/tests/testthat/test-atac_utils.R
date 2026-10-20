@@ -25,6 +25,11 @@ test_that("range_overlaps works", {
   )
 
   expect_identical(range_overlaps(a, b), expected)
+
+  # Ranges on chromosomes missing from a overlap nothing
+  b_chr3 <- tibble::tibble(chr = "chr3", start = 0, end = 30)
+  expect_identical(range_overlaps(a, dplyr::bind_rows(b, b_chr3)), expected)
+  expect_identical(range_overlaps(a, b_chr3), expected[0, ])
 })
 
 test_that("range_distance_to_nearest works", {

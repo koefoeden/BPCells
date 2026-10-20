@@ -289,21 +289,21 @@ gene_score_weights_archr <- function(genes, chromosome_sizes, blacklist = NULL, 
     dplyr::pull(tile_count, name = chr)
   start_tile <- cumsum(tile_count) - tile_count
 
+  gene_widths <- genes$end - genes$start + 5000
+  gene_scale_factor <- 5
+  gene_weights <- 1 + (1 / gene_widths) * (gene_scale_factor - 1) / (max(1 / gene_widths) - min(1 / gene_widths))
+  if (min(gene_widths) == max(gene_widths)) gene_weights[] <- 1
+
   res <- Matrix::sparseMatrix(
     i = tiles$gene_idx,
-    j = start_tile[as.character(tiles$chr)] + tiles$start %/% tile_width + 1,
-    x = exp(-abs(tiles$distance) / 5000) + exp(-1),
+    # Tile starts are multiples of tile_width, so division gives exact tile indices
+    j = start_tile[as.character(tiles$chr)] + tiles$start / tile_width + 1,
+    x = (exp(-abs(tiles$distance) / 5000) + exp(-1)) * gene_weights[tiles$gene_idx],
     dims = c(nrow(genes), sum(tile_count))
   )
   if (!is.null(gene_name_column)) {
     rownames(res) <- gene_names
   }
-
-  gene_widths <- genes$end - genes$start + 5000
-  gene_scale_factor <- 5
-  gene_weights <- 1 + (1 / gene_widths) * (gene_scale_factor - 1) / (max(1 / gene_widths) - min(1 / gene_widths))
-  if (min(gene_widths) == max(gene_widths)) gene_weights <- 1L
-  res <- res * gene_weights
   return(res)
 }
 

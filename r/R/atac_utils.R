@@ -871,26 +871,31 @@ macs_path_is_valid <- function(macs_executable) {
   }
   return(macs_executable)
 }
+
+# Find all pairs of overlapping ranges between a and b.
+# Returns a tibble with integer columns `from` (row index in a) and `to` (row index in b),
+# sorted by `from` then `to`.
 range_overlaps <- function(a, b) {
   a <- normalize_ranges(a)
   b <- normalize_ranges(b)
 
-  a$cell_id <- seq_len(nrow(a))
-  order_a <- order_ranges(a, levels(a$chr), sort_by_end = FALSE)
-  order_b <- order_ranges(b, levels(a$chr))
+  # Give each chromosome its own block of a single coordinate axis
+  a_offset <- 2^32 * as.integer(a$chr)
+  b_offset <- 2^32 * match(as.character(b$chr), levels(a$chr))
+  b_order <- order(b_offset, b$start, na.last = NA)
+  b_start <- b_offset[b_order] + b$start[b_order]
+  b_end <- b_offset[b_order] + b$end[b_order]
+  a_start <- a_offset + a$start
 
-  peak_matrix(
-    convert_to_fragments(a[order_a, ]),
-    b[order_b, ],
-    explicit_peak_names = FALSE,
-    mode = "overlaps"
-  ) %>%
-    as("dgCMatrix") %>%
-    {
-      tibble::tibble(
-          from = rep.int(seq_len(ncol(.)), diff(.@p)),
-          to = order_b[.@i +1]
-      )
-    } %>%
+  # Overlapping b ranges for each a range lie between the first one whose running maximum end
+  # exceeds the a start and the last one starting before the a end
+  first <- findInterval(a_start, cummax(b_end)) + 1L
+  last <- findInterval(a_offset + a$end, b_start, left.open = TRUE)
+  count <- pmax(last - first + 1L, 0L)
+  from <- rep.int(seq_len(nrow(a)), count)
+  to <- sequence(count, from = first)
+  overlap <- b_end[to] > a_start[from]
+
+  tibble::tibble(from = from[overlap], to = b_order[to[overlap]]) %>%
     dplyr::arrange(from, to)
 }
