@@ -13,6 +13,7 @@
 ## Improvements
 - Speed up `gene_score_weights_archr()` and `gene_score_archr()` by finding blacklisted tiles with a direct overlap search instead of a peak matrix over millions of tiles. Weights for 32k human genes now take about 4 s instead of 11 s.
 - Speed up sparse matrix multiplication with `%*%` when the left matrix is a lazy transform or type conversion, as in `gene_score_archr()`, by reading its data pointers once per loaded chunk instead of once per entry. This makes the `gene_score_archr()` product about 25% faster.
+- Speed up `gene_score_archr()` by no longer writing tile names to the intermediate tile matrix at `tile_matrix_path`, which saves about 7 s and 0.3 GB of memory per sample for the 6.2M tiles of a human genome. The gene scores are unchanged.
 
 ## Bug-fixes
 - Fix error in documentation examples for `plot_embedding()`, resulting from the way documentation examples use nested function calls (pull request #316).

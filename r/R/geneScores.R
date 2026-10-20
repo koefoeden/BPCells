@@ -338,7 +338,10 @@ gene_score_archr <- function(fragments, genes, chromosome_sizes, blacklist=NULL,
   tile_coords <- normalize_ranges(chromosome_sizes) %>%
     dplyr::mutate(tile_width = tile_width)
   
+  # The scores never use tile names, but a TileMatrix generates them when written unless a RenameDims wrapper
+  # drops them. Writing and reloading the 6M names of a human genome takes seconds.
   tile_mat <- tile_matrix(fragments, tile_coords) %>%
+    wrapMatrix("RenameDims", .) %>%
     write_matrix_dir(tile_matrix_path)
 
   if (!is.null(tile_max_count)) {
