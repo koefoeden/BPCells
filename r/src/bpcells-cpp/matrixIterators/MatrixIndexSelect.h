@@ -291,8 +291,14 @@ template <class T> class MatrixRowSelect : public MatrixLoaderWrapper<T> {
     uint32_t loaded = 0;
 
     // Reverse lookup for row indices -- reverse_indices[i] gives the output row_id
-    // for input row_id i
+    // for input row_id i. Only populated if row_indices is not increasing.
     std::vector<uint32_t> reverse_indices;
+    // Compact reverse lookup for increasing row_indices, a quarter the size of reverse_indices
+    // so that it stays in cache on matrices with many rows. Input row_id i is selected if the
+    // top bit of block_offset[i] is set, and its output row_id is then
+    // block_start[i / 128] + (block_offset[i] & 127).
+    std::vector<uint32_t> block_start;
+    std::vector<uint8_t> block_offset;
     const std::vector<uint32_t> row_indices;
     bool is_reorder;
 
@@ -304,14 +310,29 @@ template <class T> class MatrixRowSelect : public MatrixLoaderWrapper<T> {
         std::unique_ptr<MatrixLoader<T>> &&loader, const std::vector<uint32_t> row_indices
     )
         : MatrixLoaderWrapper<T>(std::move(loader))
-        , reverse_indices(this->loader->rows(), UINT32_MAX)
         , row_indices(row_indices) {
+        is_reorder = row_indices.size() == this->loader->rows();
+        bool increasing = true;
+        for (uint32_t i = 1; i < row_indices.size(); i++) {
+            increasing = increasing && row_indices[i - 1] < row_indices[i];
+        }
+        if (increasing) {
+            block_start.resize(this->loader->rows() / 128 + 1);
+            block_offset.resize(this->loader->rows(), 0);
+            for (uint32_t i = row_indices.size(); i > 0; i--) {
+                block_start[row_indices[i - 1] / 128] = i - 1;
+            }
+            for (uint32_t i = 0; i < row_indices.size(); i++) {
+                block_offset[row_indices[i]] = 128 | (i - block_start[row_indices[i] / 128]);
+            }
+            return;
+        }
+        reverse_indices.resize(this->loader->rows(), UINT32_MAX);
         for (uint32_t i = 0; i < row_indices.size(); i++) {
             if (reverse_indices[row_indices[i]] != UINT32_MAX)
                 throw std::runtime_error("Cannot duplicate rows using MatrixRowSelect");
             reverse_indices[row_indices[i]] = i;
         }
-        is_reorder = row_indices.size() == this->loader->rows();
     }
 
     ~MatrixRowSelect() = default;
@@ -349,6 +370,17 @@ template <class T> class MatrixRowSelect : public MatrixLoaderWrapper<T> {
             // Count in a local variable: the member could alias row_ptr, which would force
             // a store and reload of the count for every entry
             uint32_t kept = 0;
+            if (reverse_indices.empty()) {
+                for (uint32_t i = 0; i < cap; i++) {
+                    uint32_t row = row_ptr[i];
+                    uint8_t offset = block_offset[row];
+                    row_ptr[kept] = block_start[row / 128] + (offset & 127);
+                    val_ptr[kept] = val_ptr[i];
+                    kept += offset >> 7;
+                }
+                loaded = kept;
+                continue;
+            }
             for (uint32_t i = 0; i < cap; i++) {
                 uint32_t new_row = reverse_indices[row_ptr[i]];
                 row_ptr[kept] = new_row;
