@@ -8,6 +8,8 @@
 
 #include "CellSelect.h"
 
+#include <algorithm>
+
 namespace BPCells {
 
 // cell_indices -- vector with length <= the number of chromosomes in the input
@@ -42,12 +44,17 @@ bool CellIndexSelect::load() {
         uint32_t *start = loader->startData();
         uint32_t *end = loader->endData();
         uint32_t capacity = loader->capacity();
+        // Count in a local variable, since the compiler must assume writes to cell, start, and
+        // end can change the `loaded` member
+        uint32_t kept = 0;
         for (uint32_t i = 0; i < capacity; i++) {
-            cell[loaded] = cell[i] < reverse_indices.size() ? reverse_indices[cell[i]] : UINT32_MAX;
-            start[loaded] = start[i];
-            end[loaded] = end[i];
-            loaded += cell[loaded] != UINT32_MAX;
+            uint32_t new_cell_id = cell[i] < reverse_indices.size() ? reverse_indices[cell[i]] : UINT32_MAX;
+            cell[kept] = new_cell_id;
+            start[kept] = start[i];
+            end[kept] = end[i];
+            kept += new_cell_id != UINT32_MAX;
         }
+        loaded = kept;
     }
     return true;
 }
@@ -99,13 +106,21 @@ bool CellNameSelect::load() {
         uint32_t *start = loader->startData();
         uint32_t *end = loader->endData();
         uint32_t capacity = loader->capacity();
+        // Resolve the names of new input cells first, so the loop below is a plain table lookup
+        uint32_t max_cell = 0;
+        for (uint32_t i = 0; i < capacity; i++) max_cell = std::max(max_cell, cell[i]);
+        if (capacity > 0) getOutputCellID(max_cell);
+        const uint32_t *output_ids = reverse_indices.data();
+        // Count in a local variable, as in CellIndexSelect::load()
+        uint32_t kept = 0;
         for (uint32_t i = 0; i < capacity; i++) {
-            uint32_t new_cell_id = getOutputCellID(cell[i]);
-            cell[loaded] = new_cell_id;
-            start[loaded] = start[i];
-            end[loaded] = end[i];
-            loaded += new_cell_id != UINT32_MAX;
+            uint32_t new_cell_id = output_ids[cell[i]];
+            cell[kept] = new_cell_id;
+            start[kept] = start[i];
+            end[kept] = end[i];
+            kept += new_cell_id != UINT32_MAX;
         }
+        loaded = kept;
     }
     return true;
 }

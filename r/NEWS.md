@@ -11,6 +11,7 @@
 - Add `sample_bernoulli()`, a lazy `IterableMatrix` transform that keeps each non-zero entry independently with probability `prob` using a reproducible, stateless hash of `(seed, row, col)`. Transform is invariant to storage order (`transpose_storage_order()`).
 
 ## Improvements
+- Speed up iterating fragments after `select_cells()`, which now adds about a third of its previous per-fragment cost when selecting by cell name and half when selecting by index.
 - Reduce the per-fragment cost of `subset_lengths()` and `select_regions()` by about a third and a half, respectively.
 
 ## Bug-fixes
