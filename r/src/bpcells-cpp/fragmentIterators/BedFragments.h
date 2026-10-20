@@ -10,6 +10,7 @@
 
 #include <array>
 #include <atomic>
+#include <future>
 #include <string>
 #include <unordered_map>
 
@@ -59,6 +60,12 @@ class BedFragments : public FragmentLoader {
     std::string path;
     gzFileWrapper f;
     std::array<char, 1 << 10> line_buf = {};
+    // Decompressed text not yet split into lines. While it is parsed, a background thread
+    // decompresses the next chunk. Declared after f, so destruction waits for that thread
+    // before closing f.
+    std::vector<char> text;
+    size_t text_pos = 0;
+    std::future<std::vector<char>> next_text;
     std::vector<std::string> chr_names, cell_names;
     std::unordered_map<std::string, uint32_t> chr_lookup;
     // Open-addressing hash table of cell_id + 1 (0 marks an empty slot), indexed by name hash.
@@ -72,6 +79,12 @@ class BedFragments : public FragmentLoader {
     std::vector<uint32_t> cell, start, end;
 
     const char *nextField(const char *c);
+
+    // Decompress the next chunk of the file, returning an empty vector at the end of the file
+    std::vector<char> readChunk();
+
+    // Copy the next line into line_buf like gzgets(), returning false at the end of the file
+    bool getLine();
 
     // Read the next line, returning false if we tried reading past the end of
     // the file

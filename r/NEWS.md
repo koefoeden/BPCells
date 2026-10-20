@@ -12,6 +12,7 @@
 
 ## Improvements
 - Reading 10x fragment files with `open_fragments_10x()` takes about 25% less time: coordinates are parsed with `std::from_chars()` and cell barcodes are looked up in a flat hash table. Coordinates that are not unsigned 32-bit integers now give an error instead of being misread.
+- `open_fragments_10x()` decompresses gzipped files on a background thread while it parses them, which takes about 40% less time when a second CPU core is free.
 
 ## Bug-fixes
 - Fix error in documentation examples for `plot_embedding()`, resulting from the way documentation examples use nested function calls (pull request #316).

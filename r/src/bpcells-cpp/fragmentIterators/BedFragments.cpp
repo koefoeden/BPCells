@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <charconv>
+#include <cstring>
 #include "BedFragments.h"
 #include "../utils/filesystem_compat.h"
 
@@ -51,13 +52,44 @@ const char *BedFragments::nextField(const char *c) {
 
 // Read the next line, returning false if we tried reading past the end of
 // the file
+std::vector<char> BedFragments::readChunk() {
+    std::vector<char> chunk(1 << 22);
+    int bytes = gzread(*f, chunk.data(), chunk.size());
+    if (bytes < 0) throw std::runtime_error("Error reading from gzfile");
+    chunk.resize(bytes);
+    return chunk;
+}
+
+bool BedFragments::getLine() {
+    while (true) {
+        const char *line = text.data() + text_pos;
+        size_t available = text.size() - text_pos;
+        const char *newline = (const char *)memchr(line, '\n', available);
+        size_t length = newline == NULL ? available : newline - line + 1;
+        // Like gzgets(), split lines longer than line_buf
+        if (newline != NULL || length >= line_buf.size() - 1 || !next_text.valid()) {
+            if (length == 0) return false;
+            length = std::min(length, line_buf.size() - 1);
+            memcpy(line_buf.data(), line, length);
+            line_buf[length] = '\0';
+            text_pos += length;
+            return true;
+        }
+        // Keep the partial line, append the next chunk and start decompressing the one after
+        text.erase(text.begin(), text.begin() + text_pos);
+        text_pos = 0;
+        std::vector<char> chunk = next_text.get();
+        text.insert(text.end(), chunk.begin(), chunk.end());
+        if (!chunk.empty())
+            next_text = std::async(std::launch::async, &BedFragments::readChunk, this);
+    }
+}
+
 bool BedFragments::read_line() {
-    if (gzgets(*f, &line_buf[0], line_buf.size()) == NULL) {
+    if (!getLine()) {
         if (eof) {
             line_buf[0] = '\0';
             return false;
-        } else if (!gzeof(*f)) {
-            throw std::runtime_error("Error reading from gzfile");
         }
         eof = true;
     }
@@ -117,8 +149,13 @@ const char *BedFragments::parseInt(const char *c, uint32_t &value) {
 }
 
 void BedFragments::restart() {
+    // Wait for a running background read before reopening f
+    if (next_text.valid()) next_text.wait();
     // This will automatically handle closing the old copy of f if needed
     f = gzFileWrapper(path.c_str(), "r");
+    text.clear();
+    text_pos = 0;
+    next_text = std::async(std::launch::async, &BedFragments::readChunk, this);
 
 
     // Reset the instance variables
