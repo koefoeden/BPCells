@@ -12,6 +12,7 @@
 ## Bug-fixes
 - Fix error in documentation examples for `plot_embedding()`, resulting from the way documentation examples use nested function calls (pull request #316).
 - Fix error in `qc_scATAC()` when fragments are near the start of a chromosome (pull request #320).
+- Fix `cluster_graph_leiden()` and `cluster_graph_louvain()` running out of memory on adjacency matrices with more than about 20k cells under igraph 2.2.0 to 2.3.x, which allocates dense cells x cells matrices (pull request #337).
 
 ## To-dos
 - Add support for sparse pseudobulking in `pseudobulk_matrix()`.  Currently in progress in #268.

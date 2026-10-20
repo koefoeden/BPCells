@@ -81,6 +81,21 @@ test_that("igraph clustering doesn't crash", {
     expect_identical(cluster_graph_louvain(graph), cluster_graph_louvain(graph_list))
 })
 
+test_that("Clustering graphs from matrices match igraph without dense allocations", {
+    skip_if_not_installed("igraph")
+    knn <- readRDS("../data/iris_geodesic_graph.rds")$knn
+    graph <- knn_to_snn_graph(knn, self_loops = TRUE)
+    dimnames(graph) <- list(paste0("cell", seq_len(nrow(graph))), paste0("cell", seq_len(nrow(graph))))
+    res <- graph_from_clustering_input(graph)
+    expected <- igraph::graph_from_adjacency_matrix(graph, weighted = TRUE, diag = FALSE, mode = "lower")
+    expect_identical(igraph::as_edgelist(res), igraph::as_edgelist(expected))
+    expect_identical(igraph::E(res)$weight, igraph::E(expected)$weight)
+
+    # igraph 2.2.0 to 2.3.x allocate dense cells x cells matrices for mode = "lower"
+    huge <- Matrix::sparseMatrix(i = c(2, 3), j = c(1, 2), x = c(1, 1), dims = c(1e6, 1e6))
+    expect_equal(igraph::ecount(graph_from_clustering_input(huge)), 2)
+})
+
 test_that("knn_hnsw rownames come from query", {
     skip_if_not_installed("RcppHNSW")
     data <- matrix(rnorm(200), nrow=20, dimnames=list(paste0("data_", 1:20)))

@@ -289,6 +289,15 @@ cluster_graph_louvain <- function(
 }
 
 graph_from_clustering_input <- function(mat) {
+  if (is(mat, "dgCMatrix")) {
+    # Read the lower triangle directly, as igraph::graph_from_adjacency_matrix(mode = "lower")
+    # allocates dense cells x cells matrices in igraph 2.2.0 to 2.3.x
+    col <- rep.int(seq_len(ncol(mat)) - 1L, diff(mat@p))
+    lower <- mat@i > col
+    graph <- graph_from_clustering_input(list(i = mat@i[lower], j = col[lower], weight = mat@x[lower], dim = nrow(mat)))
+    if (!is.null(colnames(mat))) graph <- igraph::set_vertex_attr(graph, "name", value = colnames(mat))
+    return(graph)
+  }
   if (is.list(mat) && all(c("i", "j", "weight", "dim") %in% names(mat))) {
     graph <- igraph::make_empty_graph(n = mat$dim, directed = FALSE)
     keepers <- mat$i != mat$j
