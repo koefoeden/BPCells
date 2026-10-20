@@ -116,16 +116,19 @@ bool RegionSelect::load() {
                 }
             }
             // 1. Scan until frag.start >= region.start, marking any overlaps that happen from
-            // frag.end
+            // frag.end. Count in a local variable, since the compiler must assume writes to
+            // cell, start, and end can change the `loaded` member
+            uint32_t kept = loaded;
             while (i < capacity && start[i] < r.start) {
-                cell[loaded] = cell[i];
-                start[loaded] = start[i];
-                end[loaded] = end[i];
-                loaded += invert_selection !=
-                          (end[i] > r.start); // Don't compare end[i] < r.end, since spanning the
-                                              // region counts as overlapping
+                cell[kept] = cell[i];
+                start[kept] = start[i];
+                end[kept] = end[i];
+                kept += invert_selection !=
+                        (end[i] > r.start); // Don't compare end[i] < r.end, since spanning the
+                                            // region counts as overlapping
                 i++;
             }
+            loaded = kept;
             if (i >= capacity) break;
             // 2. Binary search for frag.start >= region.end to find all the remaining overlaps
             auto easy_overlaps = std::lower_bound(&start[i], &start[capacity], r.end) - &start[i];

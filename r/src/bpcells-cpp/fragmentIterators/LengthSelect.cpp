@@ -25,12 +25,16 @@ bool LengthSelect::load() {
         uint32_t *start = loader->startData();
         uint32_t *end = loader->endData();
         uint32_t capacity = loader->capacity();
+        // Count in a local variable, since the compiler must assume writes to cell, start, and
+        // end can change the `loaded` member
+        uint32_t kept = 0;
         for (uint32_t i = 0; i < capacity; i++) {
-            cell[loaded] = cell[i];
-            start[loaded] = start[i];
-            end[loaded] = end[i];
-            loaded += (end[i] - start[i]) >= min_len && (end[i] - start[i]) <= max_len;
+            cell[kept] = cell[i];
+            start[kept] = start[i];
+            end[kept] = end[i];
+            kept += (end[i] - start[i]) >= min_len && (end[i] - start[i]) <= max_len;
         }
+        loaded = kept;
     }
     return true;
 }
