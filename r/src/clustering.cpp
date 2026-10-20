@@ -20,7 +20,6 @@
 #include <RcppEigen.h>
 
 #include "R_interrupts.h"
-#include "bpcells-cpp/utils/radix_sort.h"
 using namespace Rcpp;
 
 // Given a list of k nearest neighbors for each cell,
@@ -36,68 +35,61 @@ SEXP build_snn_graph_cpp(IntegerMatrix neighbor_indices, int min_neighbors) {
     int cells = neighbor_indices.rows();
     int k = neighbor_indices.cols();
 
-    // For each cell, mark a list of which cells mark it as a direct neighbor
-    std::vector<std::vector<int>> reverse_neighbors(cells);
-
+    // For each cell, list the cells that mark it as a direct neighbor, in ascending order.
+    // The list for cell c is reverse_neighbors[reverse_start[c]:reverse_start[c+1]]
+    std::vector<size_t> reverse_start(cells + 1, 0);
+    for (int i = 0; i < cells; i++) {
+        for (int j = 0; j < k; j++) {
+            reverse_start[neighbor_indices(i, j)]++;
+        }
+    }
+    for (int c = 0; c < cells; c++) {
+        reverse_start[c + 1] += reverse_start[c];
+    }
+    std::vector<int> reverse_neighbors(reverse_start[cells]);
+    std::vector<size_t> next_slot(reverse_start.begin(), reverse_start.end() - 1);
     for (int i = 0; i < cells; i++) {
         if (i % 1024 == 0) Rcpp::checkUserInterrupt();
         for (int j = 0; j < k; j++) {
-            reverse_neighbors[neighbor_indices(i, j) - 1].push_back(i);
+            reverse_neighbors[next_slot[neighbor_indices(i, j) - 1]++] = i;
         }
     }
 
     // For each cell, count up the shared neighbors with lower-index cells (so we get lower-triangle
-    // matrix out)
-    std::vector<std::vector<int>> shared_neighbors(cells);
-
-    for (int i = 0; i < cells; i++) {
-        if (i % 1024 == 0) Rcpp::checkUserInterrupt();
-        shared_neighbors[i].insert(shared_neighbors[i].end(), k, i);
-        for (size_t j = 0; j < reverse_neighbors[i].size(); j++) {
-            for (size_t k = j + 1; k < reverse_neighbors[i].size(); k++) {
-                int c1 = std::min(reverse_neighbors[i][j], reverse_neighbors[i][k]);
-                int c2 = std::max(reverse_neighbors[i][j], reverse_neighbors[i][k]);
-                shared_neighbors[c2].push_back(c1);
-            }
-        }
-        reverse_neighbors[i].clear();
-    }
-    reverse_neighbors.clear();
-
-    std::vector<int> buf;
+    // matrix out). shared[c] counts the neighbors of cell i that cell c also lists, and
+    // touched holds the cells with a non-zero count.
+    std::vector<int> shared(cells, 0);
+    std::vector<int> touched;
     std::vector<int> c1, c2, snn_count;
 
     for (int i = 0; i < cells; i++) {
         if (i % 1024 == 0) Rcpp::checkUserInterrupt();
-        if (shared_neighbors[i].size() == 0) continue;
-        if (buf.size() < shared_neighbors[i].size()) {
-            buf.resize(shared_neighbors[i].size());
-        }
-        size_t s = shared_neighbors[i].size();
-        BPCells::lsdRadixSortArrays(shared_neighbors[i].size(), shared_neighbors[i], buf);
-
-        int prev = shared_neighbors[i][0];
-        int count = 0;
-        for (size_t j = 0; j < s; j++) {
-            if (prev == shared_neighbors[i][j]) {
-                count++;
-            } else {
-                if (count >= min_neighbors) {
-                    c1.push_back(i);
-                    c2.push_back(prev);
-                    snn_count.push_back(count);
-                }
-                prev = shared_neighbors[i][j];
-                count = 1;
+        for (int j = 0; j < k; j++) {
+            int neighbor = neighbor_indices(i, j) - 1;
+            for (size_t r = reverse_start[neighbor]; r < reverse_start[neighbor + 1]; r++) {
+                int c = reverse_neighbors[r];
+                if (c > i) break;
+                if (shared[c]++ == 0) touched.push_back(c);
             }
         }
-        if (count >= min_neighbors) {
-            c1.push_back(i);
-            c2.push_back(prev);
-            snn_count.push_back(count);
-        }
+        // For the cell itself, shared[i] sums the squared multiplicities of its neighbors.
+        // Count k plus one per pair of repeated neighbor entries, which is k when no neighbor repeats.
+        shared[i] = (shared[i] + k) / 2;
 
-        shared_neighbors[i].clear();
+        // Keep the cells with enough shared neighbors, then sort just those
+        size_t kept = 0;
+        for (int c : touched) {
+            if (shared[c] >= min_neighbors) touched[kept++] = c;
+            else shared[c] = 0;
+        }
+        std::sort(touched.begin(), touched.begin() + kept);
+        for (size_t t = 0; t < kept; t++) {
+            c1.push_back(i);
+            c2.push_back(touched[t]);
+            snn_count.push_back(shared[touched[t]]);
+            shared[touched[t]] = 0;
+        }
+        touched.clear();
     }
 
     return List::create(Named("i") = c1, Named("j") = c2, Named("snn_count") = snn_count);
