@@ -1911,7 +1911,8 @@ setMethod("short_description", "MatrixDir", function(x) {
 #' @param dir Directory to save the data into
 #' @param buffer_size For performance tuning only. The number of items to be buffered
 #' in memory before calling writes to disk.
-#' @param overwrite If `TRUE`, write to a temp dir then overwrite existing data. Alternatively,
+#' @param overwrite If `TRUE`, write to a temporary location, then overwrite existing data.
+#'   `write_matrix_dir()` uses a temporary folder inside `dir`. For HDF5 files, alternatively
 #'   pass a temp path as a string to customize the temp dir location.
 #' @examples
 #' #######################################################################
@@ -1932,14 +1933,6 @@ write_matrix_dir <- function(mat, dir, compress = TRUE, buffer_size = 8192L, ove
   assert_is(compress, "logical")
   assert_is(buffer_size, "integer")
   assert_is(overwrite, c("logical", "character"))
-  if (is(overwrite, "character")) {
-    assert_true(dir.exists(overwrite))
-    overwrite_path <- tempfile("overwrite", tmpdir=overwrite)
-    overwrite <- TRUE
-  } else if (overwrite) {
-    overwrite_path <- tempfile("overwrite")
-  }
-
 
   assert_true(matrix_type(mat) %in% c("uint32_t", "float", "double"))
   if (compress && matrix_type(mat) != "uint32_t") {
@@ -1950,21 +1943,11 @@ write_matrix_dir <- function(mat, dir, compress = TRUE, buffer_size = 8192L, ove
   }
 
   dir <- normalizePath(dir, mustWork = FALSE)
-  
-  did_tmp_copy <- FALSE
-  if (overwrite && dir.exists(dir)) {
-    mat <- write_matrix_dir(mat, overwrite_path, compress, buffer_size)
-    did_tmp_copy <- TRUE
-  }
-
-  it <- iterate_matrix(mat)
-
   write_function <- get(sprintf("write_%s_matrix_file_%s_cpp", ifelse(compress, "packed", "unpacked"), matrix_type(mat)))
-  write_function(it, dir, buffer_size, overwrite, mat@transpose)
-
-  if (did_tmp_copy) {
-    unlink(overwrite_path, recursive=TRUE)
-  }
+  write_dir_with_overwrite(
+    function(path) write_function(iterate_matrix(mat), path, buffer_size, FALSE, mat@transpose),
+    dir, overwrite
+  )
   open_matrix_dir(dir, buffer_size)
 }
 
@@ -2029,8 +2012,7 @@ setMethod("short_description", "EXPERIMENTAL_MatrixDirCompressedCol", function(x
 #' with many columns of all-zero, and less than 2^32-1 non-zero entries.
 #'
 #' @param dir Directory to save the data into
-#' @param overwrite If `TRUE`, write to a temp dir then overwrite existing data. Alternatively,
-#'   pass a temp path as a string to customize the temp dir location.
+#' @param overwrite If `TRUE`, write to a temporary folder inside `dir`, then overwrite existing data.
 #' @keywords internal
 EXPERIMENTAL_write_matrix_dir <- function(mat, dir, buffer_size = 8192L, overwrite = FALSE) {
   assert_is(mat, c("IterableMatrix", "dgCMatrix"))
@@ -2039,33 +2021,16 @@ EXPERIMENTAL_write_matrix_dir <- function(mat, dir, buffer_size = 8192L, overwri
   assert_is(dir, "character")
   assert_is(buffer_size, "integer")
   assert_is(overwrite, c("logical", "character"))
-  if (is(overwrite, "character")) {
-    assert_true(dir.exists(overwrite))
-    overwrite_path <- tempfile("overwrite", tmpdir=overwrite)
-    overwrite <- TRUE
-  } else if (overwrite) {
-    overwrite_path <- tempfile("overwrite")
-  }
 
   assert_true(matrix_type(mat) == "uint32_t")
 
   dir <- normalizePath(dir, mustWork = FALSE)
-  
-  did_tmp_copy <- FALSE
-  if (overwrite && dir.exists(dir)) {
-    mat <- EXPERIMENTAL_write_matrix_dir(mat, overwrite_path, buffer_size)
-    did_tmp_copy <- TRUE
-  }
-
-  it <- iterate_matrix(mat)
-
-  EXPERIMENTAL_write_packed_sparse_column_matrix_file_uint32_t_cpp(
-    it, dir, buffer_size, overwrite, mat@transpose
+  write_dir_with_overwrite(
+    function(path) EXPERIMENTAL_write_packed_sparse_column_matrix_file_uint32_t_cpp(
+      iterate_matrix(mat), path, buffer_size, FALSE, mat@transpose
+    ),
+    dir, overwrite
   )
-
-  if (did_tmp_copy) {
-    unlink(overwrite_path, recursive=TRUE)
-  }
   EXPERIMENTAL_open_matrix_dir(dir, buffer_size)
 }
 

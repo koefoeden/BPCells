@@ -133,3 +133,16 @@ partial_apply <- function(f, ..., .overwrite = TRUE, .missing_args_error = TRUE)
     fn = f
   )
 }
+
+# Helper-function for write_*_dir(): run `write(path)` to write a BPCells folder at `dir`.
+# To overwrite an existing `dir`, write into a temporary folder inside it, then move the new
+# files over the old ones. The input can thus read from `dir`, a failed write leaves the old
+# files unchanged, and other files in `dir` are kept.
+write_dir_with_overwrite <- function(write, dir, overwrite) {
+  if (isFALSE(overwrite) || !dir.exists(dir)) return(invisible(write(dir)))
+  new_dir <- tempfile("overwrite", tmpdir = dir)
+  on.exit(unlink(new_dir, recursive = TRUE))
+  write(new_dir)
+  files <- list.files(new_dir)
+  assert_true(all(file.rename(file.path(new_dir, files), file.path(dir, files))))
+}

@@ -679,6 +679,16 @@ test_that("Dir overwrite works", {
       write_matrix_dir(file.path(dir, "overwrite-mat"), overwrite=TRUE) %>%
       as("dgCMatrix")
   )
+  # A failed overwrite should leave the existing data unchanged
+  broken <- write_matrix_dir(as(m1, "dgCMatrix"), file.path(dir, "broken-mat"))
+  unlink(file.path(dir, "broken-mat"), recursive=TRUE)
+  expect_error(write_matrix_dir(broken, file.path(dir, "overwrite-mat"), overwrite=TRUE))
+  expect_identical(
+    as(m2, "dgCMatrix")[c(1,3),],
+    open_matrix_dir(file.path(dir, "overwrite-mat")) %>%
+      as("dgCMatrix")
+  )
+  expect_length(list.files(file.path(dir, "overwrite-mat"), pattern = "^overwrite"), 0)
 })
 
 test_that("Mtx import works", {

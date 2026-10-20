@@ -10,6 +10,9 @@
 - Add support for reading 64 bit Anndata matrices, as well as reading signed integer matrices.  Note, signed integers are converted to float/double matrices when read in. (pull request #330)
 - Add `sample_bernoulli()`, a lazy `IterableMatrix` transform that keeps each non-zero entry independently with probability `prob` using a reproducible, stateless hash of `(seed, row, col)`. Transform is invariant to storage order (`transpose_storage_order()`).
 
+## Improvements
+- `write_fragments_dir()` and `write_matrix_dir()` with `overwrite = TRUE` now write an existing directory only once: into a temporary folder inside it, whose files then replace the old ones. Previously the data was first written to `tempdir()`, then read back and written again.
+
 ## Bug-fixes
 - Fix error in documentation examples for `plot_embedding()`, resulting from the way documentation examples use nested function calls (pull request #316).
 - Fix error in `qc_scATAC()` when fragments are near the start of a chromosome (pull request #320).

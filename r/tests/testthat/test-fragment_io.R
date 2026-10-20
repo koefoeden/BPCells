@@ -205,6 +205,20 @@ test_that("Dir overwrite works", {
       write_fragments_dir(file.path(dir, "overwrite-frags"), overwrite=TRUE) %>%
       as.data.frame()
   )
+  # A failed overwrite should leave the existing data and other files unchanged
+  writeLines("other file", file.path(dir, "overwrite-frags", "other.txt"))
+  writeLines(c("chr1\t20\t25\tcell1", "chr1\t10\t15\tcell2"), file.path(dir, "unsorted.tsv"))
+  expect_error(
+    write_fragments_dir(open_fragments_10x(file.path(dir, "unsorted.tsv")), file.path(dir, "overwrite-frags"), overwrite=TRUE),
+    "sorted order"
+  )
+  expect_identical(
+    as.data.frame(select_cells(f2, c(1,3,5))),
+    open_fragments_dir(file.path(dir, "overwrite-frags")) %>%
+      as.data.frame()
+  )
+  expect_true(file.exists(file.path(dir, "overwrite-frags", "other.txt")))
+  expect_length(list.files(file.path(dir, "overwrite-frags"), pattern = "^overwrite"), 0)
 })
 
 test_that("Regression test on multiple of 128 fragments", {

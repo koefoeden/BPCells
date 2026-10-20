@@ -9,8 +9,7 @@ EXPERIMENTAL_write_matrix_dir(mat, dir, buffer_size = 8192L, overwrite = FALSE)
 \arguments{
 \item{dir}{Directory to save the data into}
 
-\item{overwrite}{If \code{TRUE}, write to a temp dir then overwrite existing data. Alternatively,
-pass a temp path as a string to customize the temp dir location.}
+\item{overwrite}{If \code{TRUE}, write to a temporary folder inside \code{dir}, then overwrite existing data.}
 }
 \description{
 The experimental sparse-column format is designed to handle storage of matrices

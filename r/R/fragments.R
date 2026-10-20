@@ -444,7 +444,8 @@ setMethod("short_description", "FragmentsDir", function(x) {
 #' @param dir Directory to read/write the data from
 #' @param buffer_size For performance tuning only. The number of items to be bufferred
 #' in memory before calling writes to disk.
-#' @param overwrite If `TRUE`, write to a temp dir then overwrite existing data. Alternatively,
+#' @param overwrite If `TRUE`, write to a temporary location, then overwrite existing data.
+#'   `write_fragments_dir()` uses a temporary folder inside `dir`. For HDF5 files, alternatively
 #'   pass a temp path as a string to customize the temp dir location.
 #' @return Fragment object
 #' @rdname fragment_io
@@ -467,31 +468,13 @@ write_fragments_dir <- function(fragments, dir, compress = TRUE, buffer_size = 1
   assert_is(compress, "logical")
   assert_is(buffer_size, "integer")
   assert_is(overwrite, c("logical", "character"))
-  if (is(overwrite, "character")) {
-    assert_true(dir.exists(overwrite))
-    overwrite_path <- tempfile("overwrite", tmpdir=overwrite)
-    overwrite <- TRUE
-  } else if (overwrite) {
-    overwrite_path <- tempfile("overwrite")
-  }
 
   dir <- normalizePath(dir, mustWork=FALSE)
-  did_tmp_copy <- FALSE
-  if (overwrite && dir.exists(dir)) {
-    fragments <- write_fragments_dir(fragments, overwrite_path, compress, buffer_size)
-    did_tmp_copy <- TRUE
-  }
-
-  it <- iterate_fragments(fragments)
-  if (compress) {
-    write_packed_fragments_file_cpp(it, dir, buffer_size, overwrite)
-  } else {
-    write_unpacked_fragments_file_cpp(it, dir, buffer_size, overwrite)
-  }
-
-  if (did_tmp_copy) {
-    unlink(overwrite_path, recursive=TRUE)
-  }
+  write_function <- if (compress) write_packed_fragments_file_cpp else write_unpacked_fragments_file_cpp
+  write_dir_with_overwrite(
+    function(path) write_function(iterate_fragments(fragments), path, buffer_size, FALSE),
+    dir, overwrite
+  )
   open_fragments_dir(dir, buffer_size)
 }
 
