@@ -346,12 +346,16 @@ template <class T> class MatrixRowSelect : public MatrixLoaderWrapper<T> {
             uint32_t *row_ptr = this->loader->rowData();
             T *val_ptr = this->loader->valData();
 
+            // Count in a local variable: the member could alias row_ptr, which would force
+            // a store and reload of the count for every entry
+            uint32_t kept = 0;
             for (uint32_t i = 0; i < cap; i++) {
                 uint32_t new_row = reverse_indices[row_ptr[i]];
-                row_ptr[loaded] = new_row;
-                val_ptr[loaded] = val_ptr[i];
-                loaded += new_row != UINT32_MAX;
+                row_ptr[kept] = new_row;
+                val_ptr[kept] = val_ptr[i];
+                kept += new_row != UINT32_MAX;
             }
+            loaded = kept;
         }
         return true;
     }
