@@ -86,8 +86,10 @@ template <typename T> class SparseMultiply : public MatrixLoader<T> {
                     T val = right->valData()[i];
                     while (left->load()) {
                         uint32_t l_cap = left->capacity();
+                        const uint32_t *l_row = left->rowData();
+                        const T *l_val = left->valData();
                         for (uint32_t j = 0; j < l_cap; j++) {
-                            col_buffer[left->rowData()[j]] += left->valData()[j] * val;
+                            col_buffer[l_row[j]] += l_val[j] * val;
                         }
                     }
                 }
